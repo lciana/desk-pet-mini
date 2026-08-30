@@ -37,14 +37,23 @@ if [ ! -d node_modules ]; then
   npm install
 fi
 
-# 2) 图标：缺 icon.icns 时用 Pillow 从 build/icon.ico 生成
+# 2) 语音模型：仓库里是 3 个分片（43.9MB 超过 GitHub 单文件上限），需先合并
+#    直接拷贝源码过来的话 zip 已完整，此步自动跳过
+MODEL="assets/vosk-models/vosk-model-small-cn-0.22.zip"
+if [ ! -f "$MODEL" ] && ls "$MODEL".part* >/dev/null 2>&1; then
+  echo "==> 合并语音模型分片"
+  cat "$MODEL".part* > "$MODEL"
+  echo "    完成（$(du -h "$MODEL" | cut -f1)）"
+fi
+
+# 3) 图标：缺 icon.icns 时用 Pillow 从 build/icon.ico 生成
 if [ ! -f mac/icon.icns ]; then
   echo "==> 生成 mac/icon.icns"
   python3 -m pip install --quiet Pillow 2>/dev/null || true
   python3 mac/make-icns.py
 fi
 
-# 3) 构建
+# 4) 构建
 echo "==> 构建中：electron-builder --mac --$ARCH"
 CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac "--$ARCH"
 
