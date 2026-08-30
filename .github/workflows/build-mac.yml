@@ -55,10 +55,10 @@ jobs:
           python3 -m pip install Pillow
           python3 mac/make-icns.py
 
-      - name: 构建 DMG + ZIP
+      - name: 构建 DMG + PKG
         run: npx electron-builder --mac --${{ inputs.arch }}
         env:
-          # 没有 Apple 开发者证书，跳过代码签名（见下方"首次打开"提示）
+          # 没有 Apple 开发者证书，跳过代码签名
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: 上传产物
@@ -67,5 +67,5 @@ jobs:
           name: 桌宠Mini-macOS-${{ inputs.arch }}
           path: |
             dist/*.dmg
-            dist/*.zip
+            dist/*.pkg
           if-no-files-found: error
