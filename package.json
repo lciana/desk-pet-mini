@@ -1,0 +1,87 @@
+{
+  "name": "desk-pet-mini",
+  "version": "1.0.0",
+  "description": "精简版透明桌宠（待办/设置/对话/看屏幕/戳一戳/边缘变换/主动话题/长期记忆/番茄钟）",
+  "main": "main.js",
+  "scripts": {
+    "start": "node run.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac",
+    "dist:mac:zip": "electron-builder --mac zip"
+  },
+  "author": "you",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.deskpet.mini",
+    "productName": "桌宠Mini",
+    "copyright": "Copyright © 2026",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "package.json",
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "styles.css",
+      "assets/**/*",
+      "vendor/**/*",
+      "src/**/*",
+      "build/**/*",
+      "!mac/**/*"
+    ],
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ],
+      "icon": "mac/icon.icns",
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "darkModeSupport": false,
+      "extendInfo": {
+        "NSHighResolutionCapable": true,
+        "NSMicrophoneUsageDescription": "桌宠需要麦克风权限，用于语音输入对话。",
+        "NSScreenCaptureUsageDescription": "桌宠需要屏幕录制权限，用于「看屏幕」功能。"
+      }
+    },
+    "dmg": {
+      "sign": false,
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ],
+      "window": { "width": 540, "height": 380 }
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico",
+      "sign": "./sign-noop.js"
+    },
+    "nsis": {
+      "oneClick": false,
+      "deleteAppDataOnUninstall": true,
+      "include": "build/uninstall.nsh",
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "桌宠Mini",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    }
+  },
+  "dependencies": {
+    "vosk-browser": "^0.0.8"
+  }
+}
