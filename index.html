@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>我的桌宠</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+  <!-- 舞台：角色 + 气泡 -->
+  <div id="stage">
+    <div id="bubble" class="hidden"></div>
+    <div id="pet" title="左键连点 3 次＝戳一戳(随机说一句口头禅) · 按住拖动＝移动 · 拖到屏幕边缘＝变成猫猫头停靠 · 右键＝功能菜单">
+      <img id="pet-img" src="assets/char-daily.png" alt="桌宠" draggable="false" />
+      <div id="pet-cat" class="hidden"></div>
+      <div id="pet-fx"></div>
+      <div id="pet-ph" class="hidden">
+        <div class="ph-face">
+          <span class="ph-eye l"></span><span class="ph-eye r"></span>
+          <span class="ph-mouth"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 首次上传角色向导（仅上传角色，UI 不变）==================== -->
+  <div id="onboard" class="onboard hidden">
+    <div class="ob-card">
+      <div class="ob-emoji">🐾</div>
+      <h2 class="ob-title">欢迎使用桌宠</h2>
+      <p class="ob-sub">第一次打开，请选择你的主角色图片</p>
+      <div class="ob-preview">
+        <img id="ob-preview-img" alt="预览" draggable="false" />
+        <span class="ob-preview-ph">预览区</span>
+      </div>
+      <p class="ob-tip">程序会自动按角色主色（如金发→浅金）生成停靠猫猫头的毛色</p>
+      <div class="ob-btns">
+        <button id="ob-pick" class="ob-btn primary">选择角色图片</button>
+        <button id="ob-finish" class="ob-btn">完成</button>
+        <button id="ob-skip" class="ob-btn ghost">用默认形象</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 点击穿透捕获层 -->
+  <div id="panel-backdrop" class="hidden"></div>
+
+  <!-- ==================== 主菜单面板（参考UI图片背景 + JS坐标映射）==================== -->
+  <div id="main-menu" class="panel hidden">
+    <!-- 悬停高亮层（鼠标移到可点击区域时变白）-->
+    <div id="main-hover"></div>
+    <!-- 点击闪光层（按下时闪一下）-->
+    <div id="main-flash"></div>
+    <!-- 功能/设置/退出 Tab 按钮（三并列，统一交互UI）-->
+    <div class="mm-tab-bar">
+      <button class="mm-tab-btn active-tab" id="mm-fn-tab" data-tab="fn">功能</button>
+      <button class="mm-tab-btn" id="mm-set-tab" data-tab="set">设置</button>
+      <button class="mm-tab-btn" id="mm-quit-tab" data-tab="quit">退出</button>
+    </div>
+    <!-- 关闭按钮 ×：与 Tab 栏同排，紧贴「退出」右侧（对应 MM_REGIONS['close'] 热区）-->
+    <button class="mm-tab-btn" id="mm-close" title="关闭">×</button>
+    <!-- 设置内容（点击设置tab时显示在面板内）-->
+    <div id="main-set-content" class="hidden" style="position:absolute;inset:0;display:flex;flex-direction:column;background:var(--t-panel);border:none;border-radius:8px;overflow:hidden;">
+      <!-- 固定头部（不滚动）-->
+      <div class="set-fixed-header">
+        <div class="set-topbar">
+          <span style="font-weight:800;color:#5D3A1A;font-size:15px;">⚙️ 设置</span>
+          <button id="set-panel-close" class="btn-close" style="width:24px;height:24px;font-size:12px;">×</button>
+        </div>
+        <div class="settings-tabs">
+          <button class="tab-btn active" data-tab="tab-ai">AI 连接</button>
+          <button class="tab-btn" data-tab="tab-persona">人设与记忆</button>
+          <button class="tab-btn" data-tab="tab-func">功能设定</button>
+        </div>
+      </div>
+      <!-- 滚动内容区 -->
+      <div class="set-scroll-body">
+
+      <!-- Tab 1: AI 连接 -->
+      <div id="tab-ai" class="tab-content active">
+        <label class="chk"><input id="cfg-ai" type="checkbox" /> 启用 AI（对话 / 看屏幕 / 主动找你聊）</label>
+        <div class="badge-line">当前状态：<span id="ai-badge" class="badge">AI 未开启</span></div>
+        <hr />
+        <label>大模型 API Key
+          <input id="cfg-key" type="password" placeholder="填你的 API Key" />
+        </label>
+        <label>对话模型 ID
+          <input id="cfg-model" placeholder="如 glm-4.5 / doubao-pro-4k" />
+        </label>
+        <label>视觉模型 ID（看屏幕用）
+          <input id="cfg-vision" placeholder="如 glm-4.5v / doubao-vision-pro" />
+        </label>
+        <label>API 地址
+          <input id="cfg-base" placeholder="自定义 API 地址（可选）" />
+        </label>
+        <div class="add-row"><button id="btn-test-cfg">测试连接</button><span id="cfg-test-msg" class="hint"></span></div>
+      </div>
+
+      <!-- Tab 2: 人设与记忆 -->
+      <div id="tab-persona" class="tab-content">
+        <h3 style="margin-bottom:12px;">人设</h3>
+        <div id="char-pick-box" style="display:none;align-items:center;gap:12px;margin-bottom:14px;padding:10px;border:1px dashed #c9b8e8;border-radius:10px;background:rgba(255,255,255,0.35);">
+          <img id="char-pick-preview" alt="形象" style="width:56px;height:56px;border-radius:50%;object-fit:cover;display:none;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.15);" />
+          <div style="flex:1;min-width:0;">
+            <div id="char-pick-status" class="hint" style="margin-bottom:6px;"></div>
+            <button id="btn-char-pick" style="display:none;">选择人物形象</button>
+            <span id="char-pick-locked" class="hint" style="display:none;color:#9a8;"></span>
+          </div>
+        </div>
+        <label>名字 <input id="per-name" placeholder="桌宠" /></label>
+        <div class="row-2">
+          <label>年龄 <input id="per-age" type="number" min="1" max="120" /></label>
+          <label>身高 cm <input id="per-height" type="number" /></label>
+        </div>
+        <div class="row-2">
+          <label style="flex:1.4;">生日 <input id="per-birthday" placeholder="3月5日" style="width:100%;" /></label>
+          <label style="flex:0.6;">体重 kg <input id="per-weight" type="number" style="width:50px;" /></label>
+        </div>
+        <label>职业 <input id="per-job" /></label>
+        <label>爱好（逗号分隔）<input id="per-hobbies" /></label>
+        <label>其他事实（每行一条）
+          <textarea id="per-facts" rows="2" placeholder="例如：怕黑&#10;喜欢喝奶茶"></textarea>
+        </label>
+        <label>性格特点（注入系统提示词）
+          <textarea id="per-traits" rows="3" placeholder="温柔、务实、偶尔笨拙"></textarea>
+        </label>
+        <hr />
+        <h3>口头禅</h3>
+        <p class="hint">桌宠会随机说这些话（待办提醒等场景）</p>
+        <ul id="catchphrase-list" class="todo-list"></ul>
+        <div class="add-row">
+          <input id="catchphrase-input" class="grow" placeholder="输入一句口头禅…" />
+          <button id="btn-catchphrase-add">+</button>
+        </div>
+        <label class="chk"><input id="cfg-autoCatchphrase" type="checkbox" checked /> 每周从聊天记忆自动选取口头禅（最多3条）</label>
+        <hr />
+        <h3>长期记忆</h3>
+        <ul id="mem-list" class="todo-list"></ul>
+        <div class="add-row">
+          <select id="mem-cat"><option value="me">关于你</option><option value="us">我们/关系</option><option value="pref">喜好</option><option value="date">重要日期</option><option value="other">其他</option></select>
+          <input id="mem-key" placeholder="标签(可空)" />
+          <input id="mem-value" class="grow" placeholder="内容，如：生日 3月5日" />
+          <button id="btn-mem-add">记</button>
+        </div>
+        <label class="chk"><input id="cfg-autolearn" type="checkbox" /> 自动从对话中学习新记忆</label>
+        <div class="btn-grid-2x2">
+          <button id="btn-per-import">导入人设</button>
+          <button id="btn-per-export">导出人设</button>
+          <button id="btn-mem-import">导入记忆</button>
+          <button id="btn-mem-export">导出记忆</button>
+        </div>
+      </div>
+
+      <!-- Tab 3: 功能设定 -->
+      <div id="tab-func" class="tab-content">
+        <label class="chk"><input id="cfg-alwaysTop" type="checkbox" checked /> 桌宠永久置顶</label>
+        <label class="chk"><input id="cfg-autoStart" type="checkbox" /> 开机自启动</label>
+        <label class="chk"><input id="cfg-proactive" type="checkbox" checked /> 启动主动互动</label>
+        <hr />
+        <h3>UI 主题</h3>
+        <p class="hint">选择一套 UI 配色主题，点击色块即时切换</p>
+        <div class="theme-picker" id="theme-picker"></div>
+        <hr />
+        <h3>长时间专注关心</h3>
+        <p class="hint">同一应用停留超过以下分钟数，角色会关心一句（每个应用每次会话只触发一次）</p>
+        <label>专注阈值（分钟）<input id="cfg-focusMin" type="number" min="1" max="120" value="30" /></label>
+        <hr />
+        <h3>界面音效</h3>
+        <label class="chk"><input id="cfg-sfx-off" type="checkbox" /> 关闭界面点击音效</label>
+        <label>音效声音大小 <input id="cfg-sfx-vol" type="range" min="0" max="100" value="60" /></label>
+        <hr />
+        <h3>待办提醒</h3>
+        <label class="chk"><input id="cfg-todoSpeak" type="checkbox" checked /> 待办到点时桌宠语音朗读出来</label>
+        <p id="sync-msg" class="hint"></p>
+        <div class="btn-row">
+          <button id="btn-save-set">保存设置</button>
+        </div>
+      </div>
+      </div><!-- /set-scroll-body -->
+    </div><!-- /main-set-content -->
+  </div>
+
+  <!-- 对话浮条 -->
+  <div id="chat-ui" class="panel hidden">
+    <div class="panel-header"><span>💬 对话</span><button class="btn-close" title="关闭（Esc）">×</button></div>
+    <div id="chat-log"></div>
+    <div class="input-row">
+      <button id="btn-voice" class="voice-btn" title="语音输入">🎤</button>
+      <input id="chat-input" placeholder="和桌宠说点什么…" />
+      <button id="btn-send">发送</button>
+    </div>
+  </div>
+
+  <!-- 待办面板 -->
+  <div id="todo-panel" class="panel hidden">
+    <div class="panel-header"><span>📋 待办</span><button class="btn-close" title="关闭（Esc）">×</button></div>
+    <h3>今日待办</h3>
+    <div class="add-row">
+      <input id="todo-text" class="grow" placeholder="事项" />
+      <input id="todo-time" type="time" title="今天几点做（可空）" />
+      <input id="todo-deadline" type="date" title="截止日期（可空）" />
+      <button id="btn-todo-add">+</button>
+    </div>
+    <ul id="todo-today" class="todo-list"></ul>
+    <h3>模板（每日自动注入今日）</h3>
+    <div class="add-row">
+      <input id="tpl-text" class="grow" placeholder="模板事项" />
+      <input id="tpl-time" type="time" title="默认时间（可空）" />
+      <button id="btn-tpl-add">+</button>
+    </div>
+    <ul id="todo-templates" class="todo-list"></ul>
+    <h3>历史待办</h3>
+    <ul id="todo-history" class="todo-list"></ul>
+  </div>
+
+  <!-- 设置面板（保留作为独立面板入口，但主要内容已移到主菜单）-->
+  <div id="settings-panel" class="panel hidden">
+    <div class="panel-header"><span>⚙️ 设置</span><button class="btn-close" title="关闭（Esc）">×</button></div>
+    <div class="settings-tabs">
+      <button class="tab-btn active" data-tab="tab-ai">AI 连接</button>
+      <button class="tab-btn" data-tab="tab-persona">人设与记忆</button>
+      <button class="tab-btn" data-tab="tab-func">功能设定</button>
+    </div>
+
+    <!-- Tab 1: AI 连接 -->
+    <div id="tab-ai-2" class="tab-content active">
+      <label class="chk"><input id="cfg-ai-2" type="checkbox" /> 启用 AI</label>
+      <label>API Key <input id="cfg-key-2" type="password" placeholder="填你的 API Key" /></label>
+      <label>对话模型 <input id="cfg-model-2" placeholder="如 glm-4.5" /></label>
+      <label>视觉模型 <input id="cfg-vision-2" placeholder="如 glm-4.5v" /></label>
+      <label>API 地址 <input id="cfg-base-2" placeholder="自定义 API 地址（可选）" /></label>
+      <button id="btn-test-cfg-2">测试连接</button><span id="cfg-test-msg-2" class="hint"></span>
+    </div>
+  </div>
+
+  <!-- 番茄钟面板 -->
+  <div id="pomodoro-panel" class="panel hidden">
+    <div class="panel-header"><span>🍅 番茄钟</span><button class="btn-close" title="关闭（Esc）">×</button></div>
+    <div class="pomo-ring-wrap">
+      <svg class="pomo-ring" viewBox="0 0 120 120">
+        <circle class="pomo-ring-bg" cx="60" cy="60" r="54"></circle>
+        <circle id="pomo-ring-fg" class="pomo-ring-fg" cx="60" cy="60" r="54"></circle>
+      </svg>
+      <div class="pomo-center">
+        <div id="pomo-time">25:00</div>
+        <div id="pomo-phase">准备开始</div>
+      </div>
+    </div>
+    <div class="pomo-controls">
+      <button id="pomo-toggle">▶ 开始</button>
+      <button id="pomo-reset">⏹ 重置</button>
+      <button id="pomo-skip">⏭ 跳过</button>
+    </div>
+    <div class="pomo-stats">今日完成：<b id="pomo-today">0</b> 个 · 累计：<b id="pomo-total">0</b> 个</div>
+    <details class="pomo-settings">
+      <summary>⚙️ 设置</summary>
+      <label>专注时长(分) <input id="pomo-work-min" type="number" min="1" max="120" value="25" /></label>
+      <label>短休息(分) <input id="pomo-break-min" type="number" min="1" max="30" value="5" /></label>
+      <label>长休息(分) <input id="pomo-long-min" type="number" min="5" max="60" value="15" /></label>
+      <label>每隔几个番茄长休息 <input id="pomo-long-interval" type="number" min="2" max="10" value="4" /></label>
+      <label class="chk"><input id="pomo-auto-break" type="checkbox" checked /> 完成后自动开始休息</label>
+      <hr />
+      <h3>背景音</h3>
+      <label class="chk"><input id="pomo-sound-enable" type="checkbox" checked /> 计时中播放背景音</label>
+      <label>音效类型
+        <select id="pomo-sound-type">
+          <option value="rain">🌧️ 雨声</option>
+          <option value="waves">🌊 海浪声</option>
+          <option value="wind">🍃 风声</option>
+          <option value="nature">🌿 自然音</option>
+          <option value="custom">📁 自定义音频文件</option>
+        </select>
+      </label>
+      <label id="pomo-custom-sound-row" style="display:none;">本地文件路径
+        <input id="pomo-custom-sound" placeholder="如 C:\Users\xxx\music.mp3" />
+      </label>
+      <label>音量 <input id="pomo-sound-volume" type="range" min="0" max="100" value="30" /></label>
+      <button id="pomo-save-cfg">保存设置</button>
+    </details>
+  </div>
+
+  <!-- 右键功能菜单 -->
+  <div id="ctx-menu" class="ctx-menu hidden">
+    <button class="ctx-item" data-act="chat">💬 对话</button>
+    <button class="ctx-item" data-act="see">👀 看屏幕</button>
+    <button class="ctx-item" data-act="todo">📋 待办</button>
+    <button class="ctx-item" data-act="pomodoro">🍅 番茄钟</button>
+    <button class="ctx-item" data-act="set">⚙️ 设置</button>
+  </div>
+</div>
+<script src="vendor/vosk.js"></script>
+<script src="renderer.js"></script>
+</body>
+</html>
