@@ -43,8 +43,10 @@
     "mac": {
       "target": [
         { "target": "dmg", "arch": ["x64", "arm64"] },
-        { "target": "zip", "arch": ["x64", "arm64"] }
+        { "target": "zip", "arch": ["x64", "arm64"] },
+        { "target": "pkg", "arch": ["x64", "arm64"] }
       ],
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
       "icon": "mac/icon.icns",
       "category": "public.app-category.productivity",
       "identity": null,
