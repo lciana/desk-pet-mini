@@ -1,0 +1,71 @@
+name: Build macOS
+
+# 在 macOS 云端主机构建桌宠 Mini（dmg + zip）。
+# Windows / Linux **无法**构建 macOS 包（electron-builder 硬性限制），
+# 本流程让你无需 Mac 电脑也能拿到可安装的 .dmg。
+#
+# 用法：推送到 GitHub 后，进入 Actions → Build macOS → Run workflow，选择架构即可。
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: '目标架构（Apple 芯片选 arm64，Intel 芯片选 x64，universal 为通用包）'
+        required: true
+        default: 'arm64'
+        type: choice
+        options:
+          - arm64
+          - x64
+          - universal
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装依赖
+        run: npm install
+
+      # 43.9MB 的中文语音模型超过 GitHub API 单文件上限，仓库里以 3 个分片存放，
+      # 构建前先合并成完整 zip。本地直接拷贝源码时 zip 已完整，此步会自动跳过。
+      - name: 合并语音模型分片
+        run: |
+          cd assets/vosk-models
+          if [ ! -f vosk-model-small-cn-0.22.zip ] && ls vosk-model-small-cn-0.22.zip.part* >/dev/null 2>&1; then
+            echo "合并分片..."
+            cat vosk-model-small-cn-0.22.zip.part* > vosk-model-small-cn-0.22.zip
+            echo "合并完成：$(du -h vosk-model-small-cn-0.22.zip | cut -f1)"
+          else
+            echo "模型已完整，跳过合并"
+          fi
+          ls -lh
+
+      - name: 生成 macOS 图标（仓库内 icon.icns 缺失时才执行）
+        if: hashFiles('mac/icon.icns') == ''
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install Pillow
+          python3 mac/make-icns.py
+
+      - name: 构建 DMG + ZIP
+        run: npx electron-builder --mac --${{ inputs.arch }}
+        env:
+          # 没有 Apple 开发者证书，跳过代码签名（见下方"首次打开"提示）
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: 桌宠Mini-macOS-${{ inputs.arch }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
